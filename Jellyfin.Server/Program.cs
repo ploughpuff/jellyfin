@@ -40,11 +40,64 @@ namespace Jellyfin.Server
             StartupOptions options = new StartupOptions(args);
             Version version = Assembly.GetEntryAssembly().GetName().Version;
 
-            if (options.ContainsOption("-v") || options.ContainsOption("--version"))
+            if (options.ContainsOption("-h") || options.ContainsOption("--help") || options.ContainsOption("/?"))
             {
-                Console.WriteLine(version.ToString());
+                Console.WriteLine(
+@"Jellyfin - The Free Software Media System
+
+Usage: jellyfin [options]
+
+Options:
+  -h|--help|/?         Show command line help.
+  -v|--version         Display Jellyfin version number.
+
+Pathing Options:
+  -programdata <path>  Path to use for program data (databases files etc.).
+  -configdir <path>    Path to use for config data (user policies and puctures).
+  -logdir <path>       Path to use for writing log files.
+
+External FFmpeg:
+ -ffmpeg <path>        Path to external FFmpeg exe to use in place of built-in.
+ -ffprobe <path>       ffmpeg and ffprobe switches must be supplied together.
+
+Restart:
+  -restartpath         Path to reset script.
+  -restartargs         Arguments for restart script.
+
+Other:
+  -service             Run as headless service.
+  -noautorunwebapp     Run headless if startup wizard is complete.
+  -package <name>      Used when packaging Jellyfin (example, synology).
+
+
+Examples:
+  jellyfin -configdir /user/home/config -logdir /tmp/logs
+  jellyfin -ffmpeg C:\downloads\ffmpeg.exe -ffprobe C:\downloads\ffprobe.exe");
+            }
+            else if (options.ContainsOption("-v") || options.ContainsOption("--version"))
+            {
+                Console.WriteLine(Assembly.GetEntryAssembly().GetName().Version.ToString());
             }
 
+            // Sanity check that both ffmpeg and ffprobe have been supplied
+            else if (options.ContainsOption("-ffmpeg") && !options.ContainsOption("-ffprobe"))
+            {
+                Console.WriteLine("Must also supply -ffprobe <path> when using -ffmpeg");
+            }
+            else if (!options.ContainsOption("-ffmpeg") && options.ContainsOption("-ffprobe"))
+            {
+                Console.WriteLine("Must also supply -ffmpeg <path> when using -ffprobe");
+            }
+
+            // Start the main application and suspend
+            else
+            {
+                await StartAppAsync(options).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task StartAppAsync(StartupOptions options)
+        {
             ServerApplicationPaths appPaths = createApplicationPaths(options);
             // $JELLYFIN_LOG_DIR needs to be set for the logger configuration manager
             Environment.SetEnvironmentVariable("JELLYFIN_LOG_DIR", appPaths.LogDirectoryPath);
